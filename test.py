@@ -58,7 +58,7 @@ def main():
 	'''
 	### Transformation 	
 
-	with open( 'data.json' ) as project_file: 
+	with open( 'raw_data.json' ) as project_file: 
 		overall_data = json.load( project_file )
 		hits_data = overall_data['hits']		
 
