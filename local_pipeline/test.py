@@ -1,7 +1,8 @@
-import requests
-import json
-import csv
+import requests, json, csv, os
+
 import pandas as pd
+from dotenv import dotenv_values
+env_var = dotenv_values( '.env' )
 
 sparking = False
 try: 
@@ -10,7 +11,8 @@ try:
 	from pyspark.sql import SQLContext
 	sparking = True
 except: 
-	print( 'no spark' ) 
+	print( 'no spark' )
+
 
 def start_spark():
 	ss = SparkSession\
@@ -26,8 +28,8 @@ def edamam_connect( write_data=False, ss=None ):
 
 	payload = { 'type': 'public', 
 				'q': 'chicken', 
-				'app_id': '88b7dfb7', 
-				'app_key': '5612262fe977b4107a24dcc1c6526fc4'}
+				'app_id': env_var['edamam_app_id'], 
+				'app_key': env_var['edamam_app_key']}
 
 	url = host + recipe_base
 	print( url )
