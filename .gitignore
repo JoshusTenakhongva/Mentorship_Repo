@@ -1,3 +1,4 @@
 /local_pipeline/.env
 *.json
 *.csv
+*.pyc
