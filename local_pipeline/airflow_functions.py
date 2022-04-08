@@ -4,22 +4,29 @@ import pandas as pd
 from dotenv import dotenv_values
 from datetime import date
 from mysql.connector import connect, Error
+from flatten_json import flatten
+
+from airflow.models import Variable
 
 '''
 Def: Connects to the edamam API and sends a request
 Return: The response object from the API query
 '''
-def edamam_get( query='chicken', write_raw=False ): 
+def edamam_get( ti ): 
     # Initialize Variables
     env_var = dotenv_values( '.env' )
     host = 'https://api.edamam.com/'
     recipe_base = 'api/recipes/v2' 
     url = host + recipe_base
+
+    # Xcom Pulls
+    query= Variable.get( 'query' )
+
     # Initialize our config for the query 
     payload = { 'type': 'public', 
 				'q': query, 
-				'app_id': env_var['edamam_app_id'], 
-				'app_key': env_var['edamam_app_key']}
+				'app_id': Variable.get( 'edamam_id' ), 
+				'app_key': Variable.get( 'edamam_key' )}
 
     # Send a GET request to Edamam API
     response = requests.get( url, params=payload )
@@ -27,42 +34,58 @@ def edamam_get( query='chicken', write_raw=False ):
     # Close the connection
     response.close() 
 
-    # Write the raw data if prompted
-    if write_raw: 
-        write_json( response.json() )
+    print( 'success' )
 
     # Return the response
-    return response
+    return response.json()["hits"]#.replace('\'', '\"')
 
-def parse_json( raw_json, return_type='df' ): 
+    #return response.json()['hits']
+
+def parse_json_request( ti ): 
     # Initialize variables
-    return edamam_to_df( raw_json )
+    hits_list= ti.xcom_pull( task_ids=['get_edamam_request'][0] )
+    if not hits_list: 
+        raise ValueError( 'no value currently in XComs.')
+
+    thing =  edamam_json_cleanup( hits_list )
+    #print( pd.json_normalize( thing ).head() )
+    return thing
 
     #[TODO] This is a redirecting function to other helper functions
     # Have the return type be important for picking which filetype to convert to 
 
-def edamam_to_df( raw_json ): 
+def edamam_json_cleanup( json_list ): 
     # Initialization 
 
     # Isolate the hits and discard the metadata
-    hits_data = raw_json['hits']
-    hits_df = pd.json_normalize( hits_data )
+    hits_data = json_list
 
-    # Clean up column titles
-    clean_df = edamam_df_rename_cols( hits_df )
+    # Flatten the data from our hits
+    # Make the json data relational
+    flat_data = edamam_json_flatten( hits_data )
 
-    # Write the CSV
-    return clean_df
+    # export our newly flattened data
+    return flat_data
 
-def edamam_df_rename_cols( df ): 
-    df.columns = df.columns.str.replace('recipe.', '', regex=True)
-    return df
+def edamam_json_flatten( json_list ): 
+    # Init
+    index = 0
 
-def write_json( json_txt ): 
+    for index in range( len( json_list )): 
+        json_list[index] = flatten( json_list[index] )
+
+    return json_list
+
+
+def edamam_json_rename_cols( jason ): 
+    jason.columns = jason.columns.str.replace('recipe_', '', regex=True)
+    return jason
+
+def write_json( json_txt, path='new_json.json' ): 
     # [TODO] Initialize filename with date and time 
 
-    # Open file
-	with open( 'raw_data.json', 'w' ) as outfile: 
+    # push file to XCom
+	with open( path, 'w' ) as outfile: 
 		json.dump( json_txt, outfile )
 
 
@@ -70,9 +93,14 @@ def write_json( json_txt ):
 ''' #########
 Submission Function
 ''' #########
-def df_submit_mysql( df, db, table_name='query_results' ): 
+def df_submit_mysql( ti ): 
     # Initialization 
     env_var = dotenv_values('.env' ) 
+    table_name= Variable.get( 'table_name' )
+    db= Variable.get( 'mysql_db' )
+
+    ########################################################
+    df= pd.json_normalize( ti.xcom_pull(task_ids=['parse_json_request']) )
 
     # Write CREATE TABLE query using our dataframe
     # Create the table query
@@ -95,7 +123,6 @@ def df_submit_mysql( df, db, table_name='query_results' ):
         for query in insert_queries:
             cursor.execute( query )
             connection.commit()
-            print( 'successful' )
         
         print( cursor.rowcount, ": worked'" )
 
@@ -108,7 +135,7 @@ def df_submit_mysql( df, db, table_name='query_results' ):
 
 def df_create_table( table_name, df ): 
     # Initialization 
-    query = f'CREATE TABLE IF NOT EXISTS {table_name} ( id INT AUTO_INCREMENT PRIMARY KEY'
+    query = f'CREATE TABLE IF NOT EXISTS {table_name} ( id INT AUTO_INCREMENT PRIMARY KEY, \n'
 
     # Create column types (for this exercise, it'll all be strings)
     table_cols = create_table_columns( df )
@@ -125,28 +152,38 @@ def create_table_columns( df ):
 
     # Loop through the columns of a dataframe to create a table query 
     for col in df.columns: 
-        col_ = col.replace( '.', '_')
-        col_string += f',\n{col_} VARCHAR(255)'
+
+        # Skip the first one for this example pipeline
+        if index==0: 
+            index+=1
+            continue
+
+        
+        col_string += f'{col} VARCHAR(255)'
 
         index += 1
-        if index >= 30: 
+        if index > 30: 
             return col_string 
+        else: 
+            col_string+= ',\n'
     
     return col_string
 
 def df_insert( df, table ): 
     # Initialization 
-    df_cols = create_table_columns( df )[2:].replace( ' VARCHAR(255)', '')
+    df_cols = create_table_columns( df ).replace( ' VARCHAR(255)', '')
     queries = []
+    row_limit = 10
     row = 0
+    row_list = df.iloc[0: row_limit]
 
     # Create template query string 
     insert_query= f'INSERT INTO {table} ({df_cols})\
                     VALUES ($val)'
 
     # Add df info to the query 
-    while row < 10: 
-        row_info = list( df.iloc[row, 0:30] )
+    for row in row_list: 
+        row_info = row[1:31]
 
         # Convert our list to a string that REPLACE can use
         row_values = f'\"{row_info[0]}\" '
@@ -155,8 +192,6 @@ def df_insert( df, table ):
             row_values += f', \n\"{str(value)[:254]}\"'
 
         queries.append( insert_query.replace('$val', row_values))
-        row += 1
 
     # Return the string 
-    print( len( queries ))
     return queries

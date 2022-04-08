@@ -1,104 +1,32 @@
-import requests, json, csv, os
+import json
 
 import pandas as pd
-from dotenv import dotenv_values
-env_var = dotenv_values( '.env' )
+import numpy as np
 
-sparking = False
-try: 
-	from pyspark.sql import SparkSession
-	from pyspark import SparkContext 
-	from pyspark.sql import SQLContext
-	sparking = True
-except: 
-	print( 'no spark' )
+from airflow_functions import * 
+from flatten_json import flatten
 
+def main(): 
+	# Init
+	table_name= 'hamilton'
+	
+	# Read the 'hits.json' file
+	with open( 'raw_data.json', 'r' ) as read_content: 
+		df= json.load( read_content )['hits']
 
-def start_spark():
-	ss = SparkSession\
-		.builder\
-		.appName( 'Food Database Reading' )\
-		.config( 'spark.driver.extraClassPath', '/$SPARK_HOME.jars/mysql-connector-java-8.0.16.jar')\
-		.getOrCreate()
-	return ss
+		clean_json= edamam_json_cleanup( df )
 
-def edamam_connect( write_data=False, ss=None ): 
-	host = 'https://api.edamam.com/'
-	recipe_base = 'api/recipes/v2' 
+		'''
+		index = 0
+		for index in range(0, 5): 
+			print( clean_json[index] )
+			print()
+		'''
+		# Turn out flattened json into a pandas df
+		df = pd.json_normalize( clean_json )
 
-	payload = { 'type': 'public', 
-				'q': 'chicken', 
-				'app_id': env_var['edamam_app_id'], 
-				'app_key': env_var['edamam_app_key']}
+		print( df )
 
-	url = host + recipe_base
-	print( url )
-
-	response = requests.get( url, params=payload )
-
-	if write_data and ss!=None: 
-		write_json( response, ss )
-
-	response.close() 
-
-def write_json( response, ss ): 
-	with open( 'data.json', 'w' ) as outfile: 
-		json.dump( response.json(), outfile )
-
-def write_csv( response, ss ): 
-
-	with open( 'data.csv', 'w', newline='' ) as csvfile: 
-		csvwriter = csv.writer( csvfile, delimiter=' ' )
-		csvwriter.writerow( fields )
-		csvwriter.writerow( rows )
-
-def main():
-
-	### Extraction
-	'''
-	print( edamam_connect( ) )
-	'''
-	### Transformation 	
-
-	with open( 'raw_data.json' ) as project_file: 
-		overall_data = json.load( project_file )
-		hits_data = overall_data['hits']		
-
-	pd_df = pd.json_normalize( hits_data )
-	#pd_df = pd.read_json( 'hits_data.json', orient='columns')
-	pd_df.to_csv( 'hits.csv' )
-	print( pd_df.head() )
-	print( pd_df.dtypes ) 
-	print( pd_df.select_dtypes( 'double' ) )
-
-	if sparking: 
-		ss = start_spark()
-		ss_df = ss.createDataFrame( pd_df )
-		ss_df.printSchema()
-		ss_df.show().take(5)
-
-if __name__ == "__main__": 
-	main()
-
-
-
-
-'''
-from pyspark.sql import SparkSession
-from pyspark.sql import SQLContext
 
 if __name__ == '__main__': 
-    scSpark = SparkSession\
-        .builder\
-        .appName( 'reading csv' )\
-        .config( 'spark.driver.extraClassPath', '/$SPARK_HOME.jars/mysql-connector-java-8.0.16.jar')\
-        .getOrCreate()
-
-data_file = 'supermarket_sales.csv'
-sdfData = scSpark.read.csv( data_file, header=True, sep=',').cache()
-
-sdfData.registerTempTable("sales" )
-output = scSpark.sql( 'SELECT COUNT(*) as total, City from sales GROUP BY City' )
-output.show()
-'''
-
+	main()

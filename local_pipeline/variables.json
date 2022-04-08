@@ -1,0 +1,9 @@
+{
+    "csv_hits_data_path": "'hits.csv'",
+    "edamam_id": "ee458109",
+    "edamam_key": "e9e0dba14c344276964d454a7e720dda \t",
+    "json_raw_data_path": "'raw_data.json'",
+    "mysql_db": "sm_db_1",
+    "query": "'chicken'",
+    "table_name": "airflow_table"
+}
