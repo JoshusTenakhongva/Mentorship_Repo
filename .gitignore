@@ -2,3 +2,4 @@
 *.json
 *.csv
 *.pyc
+/lp_env
