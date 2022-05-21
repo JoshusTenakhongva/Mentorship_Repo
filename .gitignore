@@ -1,4 +1,4 @@
-/local_pipeline/.env
+.env
 *.json
 *.csv
 *.pyc

@@ -20,13 +20,13 @@ def edamam_get( ti ):
     url = host + recipe_base
 
     # Xcom Pulls
-    query= Variable.get( 'query' )
+    query= 'chicken'
 
     # Initialize our config for the query 
     payload = { 'type': 'public', 
 				'q': query, 
-				'app_id': Variable.get( 'edamam_id' ), 
-				'app_key': Variable.get( 'edamam_key' )}
+				'app_id': env_var( 'EDAMAM_ID' ), 
+				'app_key': env_var( 'EDAMAM_KEY' )}
 
     # Send a GET request to Edamam API
     response = requests.get( url, params=payload )
@@ -37,7 +37,7 @@ def edamam_get( ti ):
     print( 'success' )
 
     # Return the response
-    return response.json()["hits"]#.replace('\'', '\"')
+    return response.json()["hits"]
 
     #return response.json()['hits']
 
