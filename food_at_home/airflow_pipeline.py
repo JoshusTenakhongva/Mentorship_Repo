@@ -16,7 +16,6 @@ with DAG(
 ) as dag:  
     # Initialization 
 
-    pass 
     # 1. Get info from API
     task_get_edamam_request= PythonOperator( 
         task_id= 'get_edamam_request', 
@@ -37,6 +36,11 @@ with DAG(
         python_callable= df_submit_mysql
     )
 
+    task_airflow_test= PythonOperator( 
+        task_id= 'test', 
+        python_callable= airflow_var_test
+    )
+
     # task_change_recipe_byday 
 
-    task_get_edamam_request >> task_parse_request >> task_submit_mysql
+    task_airflow_test >> task_get_edamam_request >> task_parse_request >> task_submit_mysql

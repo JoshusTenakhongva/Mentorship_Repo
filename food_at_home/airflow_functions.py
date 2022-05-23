@@ -12,34 +12,34 @@ from airflow.models import Variable
 Def: Connects to the edamam API and sends a request
 Return: The response object from the API query
 '''
+def airflow_var_test( ti ): 
+    print( Variable.get('EDAMAM_ID') )
+
 def edamam_get( ti ): 
     # Initialize Variables
-    env_var = dotenv_values( '.env' )
+    env_var = dotenv_values('.env')
     host = 'https://api.edamam.com/'
     recipe_base = 'api/recipes/v2' 
     url = host + recipe_base
 
     # Xcom Pulls
-    query= Variable.get( 'query' )
+    query= "chicken"
 
     # Initialize our config for the query 
-    payload = { 'type': 'public', 
-				'q': query, 
-				'app_id': Variable.get( 'edamam_id' ), 
-				'app_key': Variable.get( 'edamam_key' )}
+    payload = {'type': 'public', 
+			    'q': query, 
+				'app_id': Variable.get('EDAMAM_ID'), 
+				'app_key': Variable.get('EDAMAM_KEY')
+                } 
 
     # Send a GET request to Edamam API
-    response = requests.get( url, params=payload )
-
-    # Close the connection
-    response.close() 
+    with requests.get( url, params=payload ) as response: 
+        query_results = response.json()['hits']
 
     print( 'success' )
 
     # Return the response
-    return response.json()["hits"]#.replace('\'', '\"')
-
-    #return response.json()['hits']
+    return query_results
 
 def parse_json_request( ti ): 
     # Initialize variables
@@ -47,9 +47,8 @@ def parse_json_request( ti ):
     if not hits_list: 
         raise ValueError( 'no value currently in XComs.')
 
-    thing =  edamam_json_cleanup( hits_list )
-    #print( pd.json_normalize( thing ).head() )
-    return thing
+    # Return our cleaned up search results
+    return edamam_json_cleanup( hits_list )
 
     #[TODO] This is a redirecting function to other helper functions
     # Have the return type be important for picking which filetype to convert to 
@@ -62,10 +61,7 @@ def edamam_json_cleanup( json_list ):
 
     # Flatten the data from our hits
     # Make the json data relational
-    flat_data = edamam_json_flatten( hits_data )
-
-    # export our newly flattened data
-    return flat_data
+    return edamam_json_flatten( hits_data )
 
 def edamam_json_flatten( json_list ): 
     # Init
@@ -95,9 +91,7 @@ Submission Function
 ''' #########
 def df_submit_mysql( ti ): 
     # Initialization 
-    env_var = dotenv_values('.env' ) 
-    table_name= Variable.get( 'table_name' )
-    db= Variable.get( 'mysql_db' )
+    table_name = "testing_1"
 
     ########################################################
     df= pd.json_normalize( ti.xcom_pull(task_ids=['parse_json_request']) )
@@ -109,7 +103,7 @@ def df_submit_mysql( ti ):
     insert_queries = df_insert( df, table_name )
 
     # Connect to local mysql 
-    with connect( host='127.0.0.1', user=env_var['mysql_user'], password=env_var['mysql_pw'], database=db) \
+    with connect( host='127.0.0.1', user=Variable.get('MYSQL_USER'), password=Variable.get('MYSQL_PW'), database=Variable.get('MYSQL_DB')) \
         as connection: 
 
         cursor = connection.cursor()
@@ -158,7 +152,6 @@ def create_table_columns( df ):
         if index==0: 
             index+=1
             continue
-
         
         col_string += f'{col} VARCHAR(255)'
 
