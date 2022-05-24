@@ -3,3 +3,4 @@
 *.csv
 *.pyc
 /lp_env
+*.log.*
