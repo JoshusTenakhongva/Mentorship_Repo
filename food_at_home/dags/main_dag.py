@@ -11,7 +11,7 @@ from airflow.models import Variable
 with DAG( 
     dag_id= 'local_airflow_dag', 
     start_date= datetime( year=2022, month=2, day=1 ),
-    schedule_interval= '* * * * *', 
+    schedule_interval= '0 0 * * *', 
     catchup= False
 ) as dag:  
     # Initialization
