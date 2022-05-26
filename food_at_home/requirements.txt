@@ -1,1 +1,2 @@
 flatten-json==0.1.13
+SQLAlchemy==1.4.36
