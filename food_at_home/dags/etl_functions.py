@@ -20,6 +20,8 @@ def airflow_var_test( ti ):
     print( Variable.get('EDAMAM_ID') )
 
 def edamam_get(ti): 
+    """Connect to edamam API, run query, and save raw data to postgres DB
+    """
     # Initialize Variables
     dag_path = os.getcwd()
     host = 'https://api.edamam.com/'
@@ -40,8 +42,17 @@ def edamam_get(ti):
     with requests.get(url, params=payload) as response: 
         query_results = response.json()['hits']
 
-    # Return the response
+    # Write to the docker volume the raw json data
     write_json(query_results, f"{dag_path}/raw_data/chicken_query.json")
+
+    # Convert json to a pandas data frame
+    df = json_to_df(query_results)
+
+    # Upload the dataframe to the postgres container
+    run_pg_query(df)
+
+    # Write the dataframe to our cleaned up docker volume
+    df.to_csv(f"{dag_path}/processed_data/chicken_query.csv")
 
 def write_json(json_txt, path='new_json.json'): 
     # [TODO] Initialize filename with date and time 
@@ -50,20 +61,28 @@ def write_json(json_txt, path='new_json.json'):
 	with open(path, 'w') as outfile: 
 		json.dump(json_txt, outfile)
 
-def run_pg_query(): 
+def json_to_df(json_data): 
+
+    # Loop through json indexes and flatten them to fit into our dataframe
+    for index in range( len( json_data )): 
+        json_data[index] = flatten( json_data[index] )
+    
+    return pd.json_normalize( json_data )
+
+def run_pg_query(df): 
     """Master function for running queries to the Postgres database. 
     """
     # Initialization 
     conn_string = "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
 
     # Connect to database
-    with create_alchemy_engine_pg("postgresql+psycopg2://airflow:airflow@postgres:5432/airflow") as engine: 
-        pass
+    engine = create_alchemy_engine_pg("postgresql+psycopg2://airflow:airflow@postgres:5432/airflow") 
+
+    df.to_sql('raw_data', engine)
 
     # Run query
 
     # Return output
-    pass
 
 def create_alchemy_engine_pg(conn_string="postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"): 
     """Helper function for run_pg_query(). Returns the credentials to connect to the database
