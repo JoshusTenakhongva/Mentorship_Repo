@@ -1,6 +1,7 @@
 import requests, json
 import pandas as pd
 import os
+import sqlalchemy as db
 
 from datetime import date
 #from mysql.connector import connect, Error
@@ -44,17 +45,14 @@ def edamam_get(ti):
     except AttributeError: 
         print("API request returned bad data")
 
-    # Write to the docker volume the raw json data
-    write_json(query_results, f"{dag_path}/raw_data/chicken_query.json")
-
     # Convert json to a pandas data frame
     df = json_to_df(query_results)
 
     # Upload the dataframe to the postgres container
-    run_pg_query(df, table='raw_data', if_exists='replace')
+    upload_df_psql(df, table='raw_data', if_exists='replace')
 
     # Write the dataframe to our cleaned up docker volume
-    df.to_csv(f"{dag_path}/processed_data/chicken_query.csv")
+    df.to_csv(f"{dag_path}/raw_data/chicken_query.csv")
 
 def write_json(json_txt, path='new_json.json'): 
     '''Write json data as file'''
@@ -76,29 +74,74 @@ def json_to_df(json_data):
     
     return pd.json_normalize( json_data )
 
-def run_pg_query(df, table, if_exists): 
+def upload_df_psql(df, table, if_exists='replace'): 
     """Master function for running queries to the Postgres database. 
     """
-    # Initialization 
-    conn_string = "postgresql+psycopg2://airflow:airflow@postgres:5432/food_at_home"
-
     # Connect to postgres container
-    engine = create_alchemy_engine_pg(conn_string) 
+    engine = connect_psql_engine() 
 
+    # Upload the dataframe to the postgres container
     df.to_sql(table, engine, if_exists=if_exists)
-
-    # Run query
 
     # Close our engine connection
     engine.dispose()
 
-def create_alchemy_engine_pg(conn_string="postgresql+psycopg2://airflow:airflow@postgres:5432/food_at_home"): 
-    """Helper function for run_pg_query(). Returns the credentials to connect to the database
-    """
+def get_table_psql(table): 
+    """Read a table from the psql db into a pandas df"""
+    # Connect to postgres container
+    engine = connect_psql_engine()
 
+    # Read the table we're looking for 
+    df = pd.read_sql_table(table, engine)
+
+    # Return the table as a dataframe
+    engine.dispose()
+    return df
+
+def run_postgres_query(query): 
+    # connect to database
+
+    # Run Query
+
+    # Close database
+    pass
+    
+
+def connect_psql_engine(conn_string=Variable.get('PSQL_DB')): 
+    """Returns a SQLAlchemy engine connecting to the psql database
+    """
     try: 
         Base = declarative_base()
         return create_engine(conn_string, echo=True) 
     except AttributeError: 
         print("SQLAlchemy conn to Postgres conatiner failed")
     
+
+"""Clean Json Request Functions"""
+def clean_edamam_data(ti): 
+    # Initialization 
+    dag_path = os.getcwd()
+    drop_cols = []
+
+    # Read from postgres to get the raw data
+    df = get_table_psql('raw_data')
+
+    # Get a list of the columns we want to drop
+    drop_cols_categories=('digest', 'image', 'totalDaily', 'image')
+    columns = list(df.columns.values)
+    
+    # Loop through the columsn and get the names of the columns we don't want
+    for col in columns: 
+        for drop_col in drop_cols_categories: 
+            if drop_col in col: 
+                drop_cols.append(col)
+
+    # Drop the columns from our data frame
+    cleaned_df = df.drop(drop_cols, axis=1)
+
+    # Upload code to the processed data table
+    upload_df_psql(cleaned_df, 'processed_data', if_exists='replace')
+
+    # Upload the csv to our docker volume
+    cleaned_df.to_csv(f"{dag_path}/processed_data/new_query.csv")
+
