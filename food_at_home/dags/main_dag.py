@@ -22,14 +22,17 @@ with DAG(
         task_id= 'test', 
         python_callable= airflow_var_test
     )
+
+    # 1. Decide on what query to look into 
     
-    # 1. Get info from API
+    
+    # 2. Get info from API
     task_get_edamam_request= PythonOperator( 
         task_id= 'get_edamam_request', 
         python_callable= edamam_get
     )
 
-    # 2. Convert API request to Pandas DF
+    # 3. Convert API request to Pandas DF
     task_clean_data= PythonOperator(
         task_id= 'clean_edamam_data', 
         python_callable= clean_edamam_data

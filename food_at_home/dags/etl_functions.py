@@ -41,9 +41,14 @@ def edamam_get(ti):
     try: 
         # Send a GET request to Edamam API
         with requests.get(url, params=payload) as response: 
-            query_results = response.json()['hits']
+            full_response = response.json()
+            query_results = full_response['hits']
+            query_next_page = full_response['_links']
+
     except AttributeError: 
         print("API request returned bad data")
+
+    write_json(query_results, f"{dag_path}/raw_data/full_query.json")
 
     # Convert json to a pandas data frame
     df = json_to_df(query_results)
@@ -61,15 +66,10 @@ def write_json(json_txt, path='new_json.json'):
     with open(path, 'w') as outfile: 
         json.dump(json_txt, outfile)
 
-def json_to_df(json_data): 
+def json_to_df(json_data, addition=None): 
     '''Convert our recipe json data into a pandas dataframe'''
 
     # Loop through json indexes and flatten them to fit into our dataframe
-    '''
-    for index in range( len( json_data )): 
-        json_data[index] = flatten( json_data[index] )
-    '''
-
     json_data = [flatten(row) for row in json_data]
     
     return pd.json_normalize( json_data )
@@ -145,3 +145,9 @@ def clean_edamam_data(ti):
     # Upload the csv to our docker volume
     cleaned_df.to_csv(f"{dag_path}/processed_data/new_query.csv")
 
+# Function to read a single ingredient and return a list of recipes with common ingredients 
+def find_recipes(ingredient): 
+    pass
+
+def create_ingredient_query(user_id): 
+    """Function that read's a user's list of ingredients and returns a """
