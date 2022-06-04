@@ -145,9 +145,27 @@ def clean_edamam_data(ti):
     # Upload the csv to our docker volume
     cleaned_df.to_csv(f"{dag_path}/processed_data/new_query.csv")
 
-# Function to read a single ingredient and return a list of recipes with common ingredients 
-def find_recipes(ingredient): 
+
+def write_recipe_psql(df): 
+    # Check if these recipe ids already exist in the database
+    recipe_links = df['link'].toList()
+
+    # Remove all information not related to our recipe schema
+    for recipe in df: 
+        if recipe['link'] in recipe_links: 
+            # remove recipe
+            pass
+
+    # Push new dataframe to the database
     pass
 
-def create_ingredient_query(user_id): 
-    """Function that read's a user's list of ingredients and returns a """
+def write_ingredient_psql(): 
+    # Get cleaned data from the database
+    df = get_table_psql('processed_data')
+
+    # Check if the ingredient ids already exist in the database
+
+    # Remove all information not related to our recipe schema
+
+    # Push new dataframe to the database
+    pass
