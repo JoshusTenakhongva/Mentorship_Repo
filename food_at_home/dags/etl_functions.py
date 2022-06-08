@@ -147,19 +147,21 @@ def clean_edamam_data(ti):
 
 
 def write_recipe_psql(df): 
-    # Check if these recipe ids already exist in the database
-    recipe_links = df['link'].toList()
+    """Takes in a dataframe and uploads the recipe info to the recipe table in the database"""
+    # Read processed data
 
-    # Remove all information not related to our recipe schema
-    for recipe in df: 
-        if recipe['link'] in recipe_links: 
-            # remove recipe
-            pass
+    # Get recipe information
+    
+
+    # 
 
     # Push new dataframe to the database
     pass
 
-def write_ingredient_psql(): 
+def write_ingredient_list_psql(df): 
+    pass
+
+def write_ingredient_psql(df): 
     # Get cleaned data from the database
     df = get_table_psql('processed_data')
 

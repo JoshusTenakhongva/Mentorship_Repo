@@ -2,31 +2,33 @@
 
 \c food_at_home
 
-DROP TABLE fact_cookbook; 
-DROP TABLE fact_pantry; 
+DROP TABLE cookbook; 
+DROP TABLE pantry; 
 
-DROP TABLE dim_recipe; 
-DROP TABLE dim_ingredient; 
-DROP TABLE dim_measurement; 
-DROP TABLE dim_user; 
+DROP TABLE recipe; 
+DROP TABLE ingredient_list; 
+DROP TABLE ingredient; 
+DROP TABLE measurement; 
+DROP TABLE user_account; 
 
-CREATE TABLE IF NOT EXISTS dim_user (
+CREATE TABLE IF NOT EXISTS user_account (
     user_id SERIAL UNIQUE PRIMARY KEY, 
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL, 
-    user_name TEXT UNIQUE NOT NULL, 
+    user_account_name TEXT UNIQUE NOT NULL, 
     email TEXT UNIQUE NOT NULL, 
     pswrd TEXT NOT NULL
 ); 
 
-CREATE TABLE IF NOT EXISTS dim_measurement (
+CREATE TABLE IF NOT EXISTS measurement (
     measurement_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
-    measurement_name TEXT NOT NULL,
-    quantity_metric TEXT, 
-    quantity_imperial TEXT
+    full_name TEXT NOT NULL,
+    alt_name_1 TEXT, 
+    alt_name_2 TEXT, 
+    alt_name_3 TEXT
 );
 
-CREATE TABLE IF NOT EXISTS dim_ingredient (
+CREATE TABLE IF NOT EXISTS ingredient (
     ingredient_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
     edamam_id TEXT NOT NULL, 
     ingredient_name TEXT NOT NULL, 
@@ -37,93 +39,173 @@ CREATE TABLE IF NOT EXISTS dim_ingredient (
     carbs_g INT, 
     expiration DATE, 
     fk_measurement INT, 
+
     CONSTRAINT fk_measurement
         FOREIGN KEY (fk_measurement) 
-            REFERENCES dim_measurement(measurement_id)
-);
+            REFERENCES measurement(measurement_id)
+); 
 
-CREATE TABLE IF NOT EXISTS dim_recipe (
+CREATE TABLE IF NOT EXISTS ingredient_list(
+    list_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
+    ingredient_1_id INT NOT NULL, 
+    ingredient_1_quantity FLOAT, 
+    ingredient_2_id INT, 
+    ingredient_2_quantity FLOAT, 
+    ingredient_3_id INT, 
+    ingredient_3_quantity FLOAT, 
+    ingredient_4_id INT, 
+    ingredient_4_quantity FLOAT, 
+    ingredient_5_id INT, 
+    ingredient_5_quantity FLOAT,
+    ingredient_6_id INT, 
+    ingredient_6_quantity FLOAT, 
+    ingredient_7_id INT, 
+    ingredient_7_quantity FLOAT, 
+    ingredient_8_id INT, 
+    ingredient_8_quantity FLOAT, 
+    ingredient_9_id INT, 
+    ingredient_9_quantity FLOAT, 
+    ingredient_10_id INT, 
+    ingredient_10_quantity FLOAT, 
+    ingredient_11_id INT, 
+    ingredient_11_quantity FLOAT, 
+    ingredient_12_id INT, 
+    ingredient_12_quantity FLOAT, 
+    ingredient_13_id INT, 
+    ingredient_13_quantity FLOAT, 
+    ingredient_14_id INT, 
+    ingredient_14_quantity FLOAT, 
+    ingredient_15_id INT, 
+    ingredient_15_quantity FLOAT,
+    ingredient_16_id INT, 
+    ingredient_16_quantity FLOAT, 
+    ingredient_17_id INT, 
+    ingredient_17_quantity FLOAT, 
+    ingredient_18_id INT, 
+    ingredient_18_quantity FLOAT, 
+    ingredient_19_id INT, 
+    ingredient_19_quantity FLOAT, 
+    ingredient_20_id INT, 
+    ingredient_20_quantity FLOAT, 
+
+    CONSTRAINT ingredient_1_id
+        FOREIGN KEY (ingredient_1_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_2_id
+        FOREIGN KEY (ingredient_2_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_3_id
+        FOREIGN KEY (ingredient_3_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_4_id
+        FOREIGN KEY (ingredient_4_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_5_id
+        FOREIGN KEY (ingredient_5_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_6_id
+        FOREIGN KEY (ingredient_6_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_7_id
+        FOREIGN KEY (ingredient_7_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_8_id
+        FOREIGN KEY (ingredient_8_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_9_id
+        FOREIGN KEY (ingredient_9_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_10_id
+        FOREIGN KEY (ingredient_10_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_11_id
+        FOREIGN KEY (ingredient_11_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_12_id
+        FOREIGN KEY (ingredient_12_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_13_id
+        FOREIGN KEY (ingredient_13_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_14_id
+        FOREIGN KEY (ingredient_14_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_15_id
+        FOREIGN KEY (ingredient_15_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_16_id
+        FOREIGN KEY (ingredient_16_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_17_id
+        FOREIGN KEY (ingredient_17_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_18_id
+        FOREIGN KEY (ingredient_18_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_19_id
+        FOREIGN KEY (ingredient_19_id)
+            REFERENCES ingredient(ingredient_id),
+
+    CONSTRAINT ingredient_20_id
+        FOREIGN KEY (ingredient_20_id)
+            REFERENCES ingredient(ingredient_id)
+
+); 
+
+CREATE TABLE IF NOT EXISTS recipe (
     recipe_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
     fk_user_id INT, 
+
+    fk_ingredient_list_1 INT NOT NULL,
+    list_1_label TEXT,  
+    fk_ingredient_list_2 INT, 
+    list_2_label TEXT,  
+    fk_ingredient_list_3 INT, 
+    list_3_label TEXT,  
+    
     link TEXT NOT NULL, 
     calories_k INT,
     fat_g INT, 
     protein_g INT, 
     carbs_g INT, 
     servings INT, 
-    ingredient_1_id INT, 
-    ingredient_2_id INT, 
-    ingredient_3_id INT, 
-    ingredient_4_id INT, 
-    ingredient_5_id INT, 
-    ingredient_6_id INT, 
-    ingredient_7_id INT, 
-    ingredient_8_id INT, 
-    ingredient_9_id INT, 
-    ingredient_10_id INT, 
-    ingredient_11_id INT, 
 
-    CONSTRAINT ingredient_1_id
-        FOREIGN KEY (ingredient_1_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_1_quantity FLOAT, 
-
-    CONSTRAINT ingredient_2_id
-        FOREIGN KEY (ingredient_2_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_2_quantity FLOAT, 
-
-    CONSTRAINT ingredient_3_id
-        FOREIGN KEY (ingredient_3_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_3_quantity FLOAT, 
-
-    CONSTRAINT ingredient_4_id
-        FOREIGN KEY (ingredient_4_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_4_quantity FLOAT, 
-
-    CONSTRAINT ingredient_5_id
-        FOREIGN KEY (ingredient_5_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_5_quantity FLOAT,
-
-    CONSTRAINT ingredient_6_id
-        FOREIGN KEY (ingredient_6_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_6_quantity FLOAT, 
-
-    CONSTRAINT ingredient_7_id
-        FOREIGN KEY (ingredient_7_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_7_quantity FLOAT, 
-
-    CONSTRAINT ingredient_8_id
-        FOREIGN KEY (ingredient_8_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_8_quantity FLOAT, 
-
-    CONSTRAINT ingredient_9_id
-        FOREIGN KEY (ingredient_9_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_9_quantity FLOAT, 
-
-    CONSTRAINT ingredient_10_id
-        FOREIGN KEY (ingredient_10_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_10_quantity FLOAT, 
-
-    CONSTRAINT ingredient_11_id
-        FOREIGN KEY (ingredient_11_id)
-            REFERENCES dim_ingredient(ingredient_id),
-    ingredient_11_quantity FLOAT, 
-        
-    CONSTRAINT fk_user_id 
+    CONSTRAINT fk_user_id
         FOREIGN KEY (fk_user_id)
-            REFERENCES dim_user(user_id)
-); 
+            REFERENCES user_account(user_id),
 
-CREATE TABLE IF NOT EXISTS fact_cookbook( 
+    CONSTRAINT fk_ingredient_list_1
+        FOREIGN KEY (fk_ingredient_list_1)
+            REFERENCES ingredient_list(list_id),
+
+    CONSTRAINT fk_ingredient_list_2
+        FOREIGN KEY (fk_ingredient_list_2)
+            REFERENCES ingredient_list(list_id),
+
+    CONSTRAINT fk_ingredient_list_3
+        FOREIGN KEY (fk_ingredient_list_3)
+            REFERENCES ingredient_list(list_id),
+);
+
+CREATE TABLE IF NOT EXISTS cookbook( 
     page_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
     fk_user_id INT, 
     fk_recipe_id INT,
@@ -131,15 +213,15 @@ CREATE TABLE IF NOT EXISTS fact_cookbook(
 
     CONSTRAINT fk_recipe_id
         FOREIGN KEY(fk_recipe_id)
-            REFERENCES dim_recipe(recipe_id), 
+            REFERENCES recipe(recipe_id), 
 
     CONSTRAINT fk_user_id
         FOREIGN KEY(fk_user_id)
-            REFERENCES dim_user(user_id)
+            REFERENCES user_account(user_id)
 
 ); 
 
-CREATE TABLE IF NOT EXISTS fact_pantry( 
+CREATE TABLE IF NOT EXISTS pantry( 
     item_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
     fk_user_id INT, 
     fk_ingredient_id INT, 
@@ -150,14 +232,14 @@ CREATE TABLE IF NOT EXISTS fact_pantry(
 
     CONSTRAINT fk_user_id
         FOREIGN KEY (fk_user_id)
-            REFERENCES dim_user(user_id), 
+            REFERENCES user_account(user_id), 
 
     CONSTRAINT fk_ingredient_id
         FOREIGN KEY (fk_ingredient_id)
-            REFERENCES dim_ingredient(ingredient_id),
+            REFERENCES ingredient(ingredient_id),
 
     CONSTRAINT fk_measurement_id
         FOREIGN KEY (fk_measurement_id)
-            REFERENCES dim_measurement(measurement_id)
+            REFERENCES measurement(measurement_id)
 
 ); 
