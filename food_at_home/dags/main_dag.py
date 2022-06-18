@@ -16,20 +16,13 @@ with DAG(
 ) as dag:  
     # Initialization
 
-    # 0. Just test if airflow is working.
-    # If this crashes, then it's a problem with airflow itself
-    task_airflow_test= PythonOperator( 
-        task_id= 'test', 
-        python_callable= airflow_var_test
-    )
-
     # 1. Decide on what query to look into 
     
     
     # 2. Get info from API
     task_get_edamam_request= PythonOperator( 
         task_id= 'get_edamam_request', 
-        python_callable= edamam_get
+        python_callable= edamam_request
     )
 
     # 3. Convert API request to Pandas DF
@@ -41,14 +34,4 @@ with DAG(
     
 
     # task_change_recipe_byday 
-    task_airflow_test >> task_get_edamam_request >> task_clean_data
-
-    
-    
-    '''
-    # 3. Insert DF into local MySQL database
-    task_submit_mysql= PythonOperator( 
-        task_id= 'submit_mysql', 
-        python_callable= df_submit_mysql
-    )
-    '''
+    task_get_edamam_request >> task_clean_data

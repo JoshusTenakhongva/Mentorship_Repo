@@ -1,5 +1,7 @@
---CREATE DATABASE IF NOT EXISTS food_at_home;
+--CREATE DATABASE food_at_home;
+CREATE DATABASE search_metadata; 
 
+-- Food at Home Recipe Data
 \c food_at_home
 DROP TABLE pantry_fact; 
 
@@ -58,3 +60,18 @@ CREATE TABLE IF NOT EXISTS pantry_fact(
         FOREIGN KEY (fk_measurement_id) 
             REFERENCES measurement_dim(measurement_id)
 ); 
+
+-- Food at Home Search Metadata
+\c search_metadata
+DROP TABLE search_history; 
+
+CREATE TABLE IF NOT EXISTS search_history(
+    id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
+    search_timestamp TIMESTAMP,
+    search_term TEXT, 
+    page_number INT, 
+    next_page TEXT, 
+    finished BOOLEAN
+
+); 
+
