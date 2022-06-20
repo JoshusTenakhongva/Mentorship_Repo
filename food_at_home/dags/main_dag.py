@@ -16,22 +16,23 @@ with DAG(
 ) as dag:  
     # Initialization
 
-    # 1. Decide on what query to look into 
-    
-    
     # 2. Get info from API
-    task_get_edamam_request= PythonOperator( 
-        task_id= 'get_edamam_request', 
-        python_callable= edamam_request
+    task_get_edamam_request = PythonOperator( 
+        task_id = 'get_edamam_request', 
+        python_callable = edamam_request
     )
 
     # 3. Convert API request to Pandas DF
-    task_clean_data= PythonOperator(
-        task_id= 'clean_edamam_data', 
-        python_callable= clean_edamam_data
+    task_clean_data = PythonOperator(
+        task_id = 'clean_edamam_data', 
+        python_callable = clean_edamam_data
     )
-    
+
+    task_transform_data = PythonOperator( 
+        task_id = 'transform_edamam_data', 
+        python_callable = transform_edamam_data
+    )
     
 
     # task_change_recipe_byday 
-    task_get_edamam_request >> task_clean_data
+    task_get_edamam_request >> task_clean_data >> task_transform_data

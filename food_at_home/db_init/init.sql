@@ -1,5 +1,5 @@
 --CREATE DATABASE food_at_home;
-CREATE DATABASE search_metadata; 
+--CREATE DATABASE search_metadata; 
 
 -- Food at Home Recipe Data
 \c food_at_home
@@ -26,18 +26,22 @@ CREATE TABLE IF NOT EXISTS ingredient_dim (
     calories_k INT, 
     fat_g INT, 
     protein_g INT, 
-    carbs_g INT, 
-    expiration DATE
+    carbs_g INT
 ); 
 
 CREATE TABLE IF NOT EXISTS recipe_dim (
     recipe_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
-    link TEXT NOT NULL, 
+    recipe_url TEXT NOT NULL, 
+    recipe_yield INT, 
+
     calories_k INT,
     fat_g INT, 
     protein_g INT, 
     carbs_g INT, 
-    servings INT
+    
+    cuisine_type TEXT, 
+    cooktime_minutes INT, 
+    meal_time TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pantry_fact(

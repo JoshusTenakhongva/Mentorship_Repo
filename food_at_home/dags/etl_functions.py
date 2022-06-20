@@ -1,24 +1,32 @@
 import requests, json
 import pandas as pd
 import os
-import sqlalchemy as db
-from datetime import datetime
 
-from datetime import date
-#from mysql.connector import connect, Error
+from datetime import datetime, date
+
 from flatten_json import flatten
 
-from sqlalchemy import Table, Column, MetaData, Integer, Computed, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker 
+from sqlalchemy.sql import text
 
 from airflow.models import Variable
 
-'''
-Connects to the edamam API and sends a request
-Return: The response object from the API query
-'''
+# constants 
+FOOD_AT_HOME = Variable.get('PSQL_DB_FOODATHOME')
+SEARCH_METADATA = Variable.get('PSQL_DB_SEARCHMETADATA')
+
+
+"""
+====================
+Chapter 1: The Airflow Tasks
+====================
+"""
 def test( ti ): 
+    '''
+    Connects to the edamam API and sends a request
+    Return: The response object from the API query
+    '''
     dag_path = os.getcwd()
     host = 'https://api.edamam.com/'
     recipe_base = 'api/recipes/v2' 
@@ -75,7 +83,7 @@ def edamam_request(ti):
     except AttributeError: 
         print("API request returned bad data")
 
-    write_query_psql({
+    write_search_history_psql({
                 'search_term': search_item, 
                 'page_number': int(full_response['from']) // 20, 
                 'next_page': links_results['next']['href']
@@ -87,70 +95,18 @@ def edamam_request(ti):
     df = json_to_df(query_results)
 
     # Upload the dataframe to the postgres container
-    upload_df_psql(df, table='raw_data', conn_string=Variable.get('PSQL_DB_FOODATHOME'), if_exists='replace')
+    upload_df_psql(df, table='raw_data', conn_url=FOOD_AT_HOME, if_exists='replace')
 
     # Write the dataframe to our cleaned up docker volume
     df.to_csv(f"{dag_path}/raw_data/{search_item}_query.csv")
 
-
-
-def write_json(json_txt, path='new_json.json'): 
-    '''Write json data as file'''
-
-    # push file to XCom
-    with open(path, 'w') as outfile: 
-        json.dump(json_txt, outfile)
-
-def json_to_df(json_data, addition=None): 
-    '''Convert our recipe json data into a pandas dataframe'''
-
-    # Loop through json indexes and flatten them to fit into our dataframe
-    json_data = [flatten(row) for row in json_data]
-    
-    return pd.json_normalize( json_data )
-
-def upload_df_psql(df, table, conn_string, if_exists='replace', index=True): 
-    """Master function for running queries to the Postgres database. 
-    """
-    # Connect to postgres container
-    engine = connect_psql_engine(conn_string) 
-
-    # Upload the dataframe to the postgres container
-    df.to_sql(table, engine, if_exists=if_exists, index=index)
-
-    # Close our engine connection
-    engine.dispose()
-
-def get_table_psql(table, database): 
-    """Read a table from the psql db into a pandas df"""
-    # Connect to postgres container
-    engine = connect_psql_engine(database)
-
-    # Read the table we're looking for 
-    df = pd.read_sql_table(table, engine)
-
-    # Return the table as a dataframe
-    engine.dispose()
-    return df
-
-def connect_psql_engine(conn_string): 
-    """Returns a SQLAlchemy engine connecting to the psql database
-    """
-    try: 
-        Base = declarative_base()
-        return create_engine(conn_string, echo=True) 
-    except AttributeError: 
-        print("SQLAlchemy conn to Postgres conatiner failed")
-    
-
-"""Clean Json Request Functions"""
 def clean_edamam_data(ti): 
     # Initialization 
     dag_path = os.getcwd()
     drop_cols = []
 
     # Read from postgres to get the raw data
-    df = get_table_psql('raw_data', Variable.get('PSQL_DB_FOODATHOME'))
+    df = get_table_psql('raw_data', FOOD_AT_HOME)
 
     # Get a list of the columns we want to drop
     drop_cols_categories=('digest', 'image', 'totalDaily', 'image')
@@ -166,55 +122,84 @@ def clean_edamam_data(ti):
     cleaned_df = df.drop(drop_cols, axis=1)
 
     # Upload code to the processed data table
-    upload_df_psql(cleaned_df, 'processed_data', Variable.get('PSQL_DB_FOODATHOME'), if_exists='replace')
+    upload_df_psql(cleaned_df, 'processed_data', FOOD_AT_HOME, if_exists='replace')
 
     # Upload the csv to our docker volume
     cleaned_df.to_csv(f"{dag_path}/processed_data/new_query.csv")
 
+def transform_edamam_data(ti): 
+    # Initialization 
+    
 
-def write_recipe_psql(df): 
-    """Takes in a dataframe and uploads the recipe info to the recipe table in the database"""
-    # Read processed data
+    # Get our cleaned up data from the database
+    df = get_table_psql('processed_data', FOOD_AT_HOME)
 
-    # Get recipe information
+    # [TODO] put Write to the search history here
 
-    # 
-    pass
+    # Write to the recipe table
+    write_recipe_psql(df)
+
+    # Write to the ingreients table 
+
+    # Write to the pantry table 
 
     
-def write_query_psql(query_info): 
-    """Write the current search query to the search_history and search_queue database"""
 
-    # Create dataframe to upload to the postgres database datetime.datetime.now()
-    query_df = pd.DataFrame({
-        'search_timestamp': [datetime.now()], 
-        'search_term': [query_info['search_term']],
-        'page_number': [query_info['page_number'] + 1], 
-        'next_page': [query_info['next_page']], 
-        'finished': [10000 - int(query_info['page_number']) < 20]
-    })
+"""
+======================
+Chapter 2: JSON Functions
+======================
+"""
+def write_json(json_txt, path='new_json.json'): 
+    '''Write json data as file'''
+
+    # push file to XCom
+    with open(path, 'w') as outfile: 
+        json.dump(json_txt, outfile)
+
+def json_to_df(json_data, addition=None): 
+    '''Convert our recipe json data into a pandas dataframe'''
+
+    # Loop through json indexes and flatten them to fit into our dataframe
+    json_data = [flatten(row) for row in json_data]
     
-    upload_df_psql(query_df, 
-        table='search_history', 
-        conn_string=Variable.get('PSQL_DB_SEARCHMETADATA'), 
-        if_exists='append', 
-        index=False)
+    return pd.json_normalize( json_data )
 
-def write_ingredient_psql(df): 
-    # Get cleaned data from the database
-    df = get_table_psql('processed_data', Variable.get('PSQL_DB_FOODATHOME'))
+"""
+======================
+Chapter 3: PSQL Get Functions
+======================
+"""
 
-    # Check if the ingredient ids already exist in the database
+def connect_psql_engine(conn_url): 
+    """Returns a SQLAlchemy engine connecting to the psql database
+    """
+    try: 
+        Base = declarative_base()
+        return create_engine(conn_url, echo=True) 
+    except AttributeError: 
+        print("SQLAlchemy conn to Postgres conatiner failed")
 
-    # Remove all information not related to our recipe schema
+def get_table_psql(table, conn_url): 
+    """Read a table from the psql db into a pandas df"""
+    # Connect to postgres container
+    engine = connect_psql_engine(conn_url)
 
-    # Push new dataframe to the database
-    pass
+    # Read the table we're looking for 
+    df = pd.read_sql_table(table, engine)
+
+    # Return the table as a dataframe
+    engine.dispose()
+    return df
 
 def get_next_query():
     """Get the next query we want to run"""
     # Connect to the database 
-    history_df = get_table_psql('search_history', Variable.get('PSQL_DB_SEARCHMETADATA'))
+    history_df = get_table_psql('search_history', SEARCH_METADATA)
+
+    # If the search_history is empty, return a default query, chicken
+    if len(history_df) == 0: 
+        return [None, None, 'Chicken', None, 'https://api.edamam.com/api/recipes/v2']
 
     '''Find the next query '''
     # Get the last query run 
@@ -231,8 +216,120 @@ def get_next_query():
         return prospects_df.iloc[0]
 
     # If the query is unfinished, continue with it and return the query 
-    return prev_query.to_list() 
-        
+    return prev_query.to_list()
+
+"""
+======================
+Chapter 3: PSQL Write Functions
+======================
+"""
+
+def upload_df_psql(df, table, conn_url, if_exists='replace', index=True): 
+    """Master function for running queries to the Postgres database. 
+    """
+    # Connect to postgres container
+    engine = connect_psql_engine(conn_url) 
+
+    # Upload the dataframe to the postgres container
+    df.to_sql(table, engine, if_exists=if_exists, index=index)
+
+    # Close our engine connection
+    engine.dispose()
+
+def write_recipe_psql(df): 
+    """Takes in a dataframe and uploads the recipe info to the recipe table in the database"""
+    """Initialization"""
+    # Query to get all of the recipe IDs from our recipe database
+    sql_query = '''
+        SELECT recipe_url
+        FROM recipe_dim'''
+    engine = connect_psql_engine(FOOD_AT_HOME)
+
+    """Trim our dataframe of unnecessary information"""
+    # Process the data further into only what we need for the recipe_dim table
+    recipe_df = df[[
+        'recipe_url', 
+        'recipe_yield',
+
+        'recipe_totalNutrients_ENERC_KCAL_quantity', 
+        'recipe_totalNutrients_FAT_quantity',
+        'recipe_totalNutrients_PROCNT_quantity',  
+        'recipe_totalNutrients_CHOCDF_quantity', 
+
+        'recipe_cuisineType_0', 
+        'recipe_totalTime', 
+        'recipe_cuisineType_0'
+        ]]
+    # Also change the names to what they are in the database
+    recipe_df = recipe_df.rename(columns={
+        'recipe_totalNutrients_ENERC_KCAL_quantity':'calories_k', 
+        'recipe_totalNutrients_FAT_quantity': 'fat_g', 
+        'recipe_totalNutrients_PROCNT_quantity': 'protein_g', 
+        'recipe_totalNutrients_CHOCDF_quantity': 'carbs_g', 
+        'recipe_cuisineType_0': 'cuisine_type', 
+        'recipe_totalTime': 'cooktime_minutes', 
+        'recipe_cuisineType_0': 'meal_time'
+        })
+
+    """Get the urls of all recipes currently in the database
+    We will use these to check for duplicates since they're the only 
+    unique identifier for Edamam recipes"""
+    # Run search query to get a list of all recipe IDs from the database
+    with engine.connect().execution_options(autocommit=True) as conn: 
+        # Run our query
+        recipe_urls = pd.read_sql(sql_query, con=conn)
+        # Transform out column into a single list
+        recipe_urls = recipe_urls.squeeze().to_list()    
+    engine.dispose()
+
+    """Drop any duplicates and upload to the database"""
+    # Drop any duplicates already in the database
+    recipe_df = recipe_df[ ~recipe_df['recipe_url'].isin(recipe_urls) ]
+    # Append our new dataframe to the recipe_dim table
+    upload_df_psql(
+        recipe_df, 
+        table='recipe_dim', 
+        conn_url=FOOD_AT_HOME, 
+        if_exists='append', 
+        index=False)
+
+def write_ingredient_psql(df): 
+    # Get cleaned data from the database
+    df = get_table_psql('processed_data', FOOD_AT_HOME)
+
+    # Check if the ingredient ids already exist in the database
+
+    # Remove all information not related to our recipe schema
+
+    # Push new dataframe to the database
+    pass
+
+    
+def write_search_history_psql(query_info): 
+    """Write the current search query to the search_history and search_queue database"""
+
+    # Create dataframe to upload to the postgres database datetime.datetime.now()
+    query_df = pd.DataFrame({
+        'search_timestamp': [datetime.now()], 
+        'search_term': [query_info['search_term']],
+        'page_number': [query_info['page_number'] + 1], 
+        'next_page': [query_info['next_page']], 
+        'finished': [10000 - int(query_info['page_number']) < 20]
+    })
+    
+    upload_df_psql(
+        query_df, 
+        table='search_history', 
+        conn_url=SEARCH_METADATA, 
+        if_exists='append', 
+        index=False)
+
+"""
+======================
+Chapter 3.5: PSQL Write Helper Functions
+======================
+"""
+
 
 
 """
