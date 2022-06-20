@@ -16,6 +16,7 @@ with DAG(
 ) as dag:  
     # Initialization
 
+    '''
     # 2. Get info from API
     task_get_edamam_request = PythonOperator( 
         task_id = 'get_edamam_request', 
@@ -27,6 +28,7 @@ with DAG(
         task_id = 'clean_edamam_data', 
         python_callable = clean_edamam_data
     )
+    '''
 
     task_transform_data = PythonOperator( 
         task_id = 'transform_edamam_data', 
@@ -35,4 +37,5 @@ with DAG(
     
 
     # task_change_recipe_byday 
-    task_get_edamam_request >> task_clean_data >> task_transform_data
+    #task_get_edamam_request >> task_clean_data >> 
+    task_transform_data

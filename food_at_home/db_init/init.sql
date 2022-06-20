@@ -21,12 +21,7 @@ CREATE TABLE IF NOT EXISTS measurement_dim (
 CREATE TABLE IF NOT EXISTS ingredient_dim (
     ingredient_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
     edamam_id TEXT NOT NULL, 
-    ingredient_name TEXT NOT NULL, 
-    link TEXT NOT NULL, 
-    calories_k INT, 
-    fat_g INT, 
-    protein_g INT, 
-    carbs_g INT
+    ingredient_name TEXT NOT NULL
 ); 
 
 CREATE TABLE IF NOT EXISTS recipe_dim (

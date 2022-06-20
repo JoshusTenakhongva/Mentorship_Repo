@@ -12,7 +12,7 @@ from sqlalchemy.sql import text
 
 from airflow.models import Variable
 
-# constants 
+# CONSTANTS
 FOOD_AT_HOME = Variable.get('PSQL_DB_FOODATHOME')
 SEARCH_METADATA = Variable.get('PSQL_DB_SEARCHMETADATA')
 
@@ -27,31 +27,14 @@ def test( ti ):
     Connects to the edamam API and sends a request
     Return: The response object from the API query
     '''
-    dag_path = os.getcwd()
-    host = 'https://api.edamam.com/'
-    recipe_base = 'api/recipes/v2' 
-    url = host + recipe_base
+    ingredient_cols = ('foodId', 'food')
+    columns = list()
 
-    # Xcom Pulls
-    query= "chicken"
+    for col in ingredient_cols: 
+        columns.extend([f'recipe_ingredients_{x}_{col}' for x in range(20)])
+        
 
-    # Initialize our config for the query 
-    payload = {'type': 'public', 
-			    'q': query, 
-				'app_id': Variable.get('EDAMAM_ID'), 
-				'app_key': Variable.get('EDAMAM_KEY')
-                } 
-
-    try: 
-        # Send a GET request to Edamam API
-        with requests.get(url, params=payload) as response: 
-            full_response = response.json()
-            query_results = full_response
-
-    except AttributeError: 
-        print("API request returned bad data")
-
-    write_json(query_results, f"{dag_path}/raw_data/full_query.json")
+    print(columns )
 
 def edamam_request(ti): 
     """Connect to edamam API, run query, and save raw data to postgres DB
@@ -137,9 +120,10 @@ def transform_edamam_data(ti):
     # [TODO] put Write to the search history here
 
     # Write to the recipe table
-    write_recipe_psql(df)
+    #write_recipe_psql(df)
 
     # Write to the ingreients table 
+    write_ingredient_psql(df)
 
     # Write to the pantry table 
 
@@ -294,15 +278,42 @@ def write_recipe_psql(df):
         index=False)
 
 def write_ingredient_psql(df): 
-    # Get cleaned data from the database
-    df = get_table_psql('processed_data', FOOD_AT_HOME)
+    ''' Initializaton '''
+    # List the columns that we want from the processed dataframe 
+    db_cols = ('foodId', 'food')
+    df_cols = df.columns
+    new_cols = ('edamam_id', 'ingredient_name')
+    ingredient_df = pd.DataFrame(columns=new_cols)
 
-    # Check if the ingredient ids already exist in the database
+    ingredient_columns = ['recipe_url']
+    for col in db_cols: 
+        ingredient_columns.extend([f'recipe_ingredients_{x}_{col}' for x in range(20)])
 
-    # Remove all information not related to our recipe schema
+    df_cols = set(ingredient_columns).intersection(df_cols)
 
-    # Push new dataframe to the database
-    pass
+    print( df_cols )
+
+    # Have our query string ready and our engine for the psql database
+    sql_query = '''
+        SELECT edamam_id
+        FROM ingredient_dim'''
+    engine = connect_psql_engine(FOOD_AT_HOME)
+
+    ''' Get the ingredient information from processed data and all ingredient ids '''
+    # Get info from processed data
+    temp_df = df[df_cols]
+    print( temp_df.to_string())
+    
+    
+    # Get all ingredient ids
+    with engine.connect().execution_options(autocommit=True) as conn: 
+        # Run our query
+        ingredient_ids = pd.read_sql(sql_query, con=conn)
+        # Transform out column into a single list
+        ingredient_ids = ingredient_ids.squeeze().to_list()    
+    engine.dispose()
+    
+    '''  '''
 
     
 def write_search_history_psql(query_info): 
@@ -336,4 +347,6 @@ Chapter 3.5: PSQL Write Helper Functions
 Struggles: 
 - Designing the data model 
 - Finding a way to automate what query to run on the API 
+- Altering the data model as you play with the data more and more, learning what you have and what you don't
+- Optimizing pandas queries
 """
