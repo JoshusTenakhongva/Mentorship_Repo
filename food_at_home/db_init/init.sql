@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS measurement_dim (
 
 CREATE TABLE IF NOT EXISTS ingredient_dim (
     ingredient_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
-    edamam_id TEXT NOT NULL, 
-    ingredient_name TEXT NOT NULL
+    ingredient_name TEXT NOT NULL, 
+    edamam_id TEXT
 ); 
 
 CREATE TABLE IF NOT EXISTS recipe_dim (
