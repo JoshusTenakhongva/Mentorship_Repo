@@ -120,7 +120,7 @@ def transform_edamam_data(ti):
     # [TODO] put Write to the search history here
 
     # Write to the recipe table
-    #write_recipe_psql(df)
+    write_recipe_psql(df)
 
     # Write to the ingreients table 
     write_ingredient_psql(df)
@@ -250,75 +250,74 @@ def write_recipe_psql(df):
         })
 
     # Drop duplicates
-    drop_duplicates_psql(df, column='recipe_url', table='recipe_dim')
+    unique_recipes_df = drop_duplicates_psql(
+        recipe_df, 
+        column='recipe_url', 
+        table='recipe_dim', 
+        conn_url=FOOD_AT_HOME)
     
     # Append our new dataframe to the recipe_dim table
     upload_df_psql(
-        recipe_df, 
+        unique_recipes_df, 
         table='recipe_dim', 
         conn_url=FOOD_AT_HOME, 
         if_exists='append', 
         index=False)
 
+    return unique_recipes_df
+
 def write_ingredient_psql(df): 
     """Writes all ingredients in the dataframe to the postgres database"""
     ''' 1. Initializaton '''
-    # Have our query string ready and our engine for the psql database
-    sql_query = '''
-        SELECT edamam_id
-        FROM ingredient_dim'''
-    engine = connect_psql_engine(FOOD_AT_HOME)
-
     # List the columns that we want from the processed dataframe 
     food_cols = ['foodId', 'food']
     df_cols = df.columns
     table_cols = ['recipe_url', 'edamam_id', 'ingredient_name']
     pantry_df = pd.DataFrame(columns=table_cols)
+    # start with the recipe_url since there will always be one 
+    columns_list = ['recipe_url']
 
     ''' 2. Create a dataframe with the desired number of columns 
         since we don't know how many ingredients there will be'''
-    # start with the recipe_url since there will always be one 
-    columns_list = ['recipe_url']
     # Create a column for each ingredient's information. 
     for col in food_cols: 
-        columns_list.extend([f'recipe_ingredients_{num}_{col}' for num in range(20)])
-
+        columns_list.extend([f'recipe_ingredients_{num}_{col}' for num in range(30)])
     # get rid of unused columns to avoid indexing exception
     df_cols = set(columns_list).intersection(df_cols)    
 
     ''' 3. Write all ingredient information from processed data as single ingredients into a dataframe '''
-
     # Loop through every row, each containing all of a recipe's ingredients 
     for index, row in df[df_cols].iterrows(): 
-
         # Separate each ingredient in the row, giving them each their own row in the pantry_df
         # length of the row integer divided by the number of columns in our pantry_df gives us the number of ingredients total
         for i in range( len(row.index)//(len(table_cols)-1) ): 
 
             # Ensure every ingredient has the recipe link. Also resets list before every loop 
             food_info = [row['recipe_url']]
-
             # Create a small dataframet to add as sa row to the pantry_df
             food_info.extend(row[ [f'recipe_ingredients_{i}_{col}' for col in food_cols] ].to_list())
-
             food_df = pd.DataFrame( data=[food_info], columns=table_cols )
-
             # Add the food_df to our pantry_df
             pantry_df = pd.concat([pantry_df, food_df], ignore_index=True)
-
-    pantry_df = pantry_df.dropna(subset=['ingredient_name'])
-    print( pantry_df.to_string() )
     
-    ''' 4. Check for duplicates already in database and in current dataframe and remove them from the dataframe'''
-    # Get all ingredient ids
-    with engine.connect().execution_options(autocommit=True) as conn: 
-        # Run our query
-        ingredient_ids = pd.read_sql(sql_query, con=conn)
-        # Transform out column into a single list
-        ingredient_ids = ingredient_ids.squeeze().to_list()    
-    engine.dispose()
+    ''' 4. Drop unnecessary data'''
+    pantry_df = pantry_df.dropna(subset=['ingredient_name'])
+    ingredients_df = drop_duplicates_psql(
+        pantry_df[['edamam_id', 'ingredient_name']], 
+        column='edamam_id', 
+        table='ingredient_dim', 
+        conn_url=FOOD_AT_HOME)
     
     ''' 5. Write the ingredients to the postgres database '''
+    upload_df_psql(
+        ingredients_df, 
+        table='ingredient_dim', 
+        conn_url=FOOD_AT_HOME, 
+        if_exists='append', 
+        index=False)
+
+    # Return the dataframe with all the ingredients, duplicates and all
+    return pantry_df
 
     
 def write_search_history_psql(query_info): 
@@ -342,18 +341,20 @@ def write_search_history_psql(query_info):
 
 """
 ======================
-Chapter 3.5: PSQL Write Helper Functions
+Chapter 4: DataFrame Helper Functions
 ======================
 """
-def drop_duplicates_psql(df, column, table): 
+def drop_duplicates_psql(df, column, table, conn_url): 
     """Get the urls of all recipes currently in the database
     We will use these to check for duplicates since they're the only 
     unique identifier for Edamam recipes"""
 
     ''' Initialization '''
-    engine = connect_psql_engine(FOOD_AT_HOME)
+    engine = connect_psql_engine(conn_url)
     # Query to get all of the identifying column from the table
     sql_query = f'SELECT {column} FROM {table}'
+    # Get rid of duplicates within the dataframe
+    df = df.drop_duplicates(subset=[column])
     
     # Run search query to get a list of all ids from the database
     with engine.connect().execution_options(autocommit=True) as conn: 

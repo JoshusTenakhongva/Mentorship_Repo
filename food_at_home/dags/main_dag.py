@@ -16,7 +16,7 @@ with DAG(
 ) as dag:  
     # Initialization
 
-    '''
+    '''    
     # 2. Get info from API
     task_get_edamam_request = PythonOperator( 
         task_id = 'get_edamam_request', 
