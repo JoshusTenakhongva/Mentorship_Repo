@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS ingredient_dim (
 
 CREATE TABLE IF NOT EXISTS recipe_dim (
     recipe_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
+    recipe_name TEXT NOT NULL, 
     recipe_url TEXT NOT NULL, 
     recipe_yield INT, 
 
@@ -40,12 +41,12 @@ CREATE TABLE IF NOT EXISTS recipe_dim (
 );
 
 CREATE TABLE IF NOT EXISTS pantry_fact(
-    id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
-    fk_recipe_id INT, 
+    pantry_id INT UNIQUE GENERATED ALWAYS AS IDENTITY, 
+    fk_recipe_id INT NOT NULL, 
     fk_ingredient_id INT NOT NULL, 
-    fk_measurement_id INT, 
+    measurement TEXT, 
 
-    ingredient_quantity FLOAT, 
+    quantity FLOAT, 
 
     CONSTRAINT fk_recipe
         FOREIGN KEY (fk_recipe_id) 
@@ -53,11 +54,7 @@ CREATE TABLE IF NOT EXISTS pantry_fact(
 
     CONSTRAINT fk_ingredient_id
         FOREIGN KEY (fk_ingredient_id)
-            REFERENCES ingredient_dim(ingredient_id),
-
-    CONSTRAINT fk_measurement_id
-        FOREIGN KEY (fk_measurement_id) 
-            REFERENCES measurement_dim(measurement_id)
+            REFERENCES ingredient_dim(ingredient_id)
 ); 
 
 -- Food at Home Search Metadata
